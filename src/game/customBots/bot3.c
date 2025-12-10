@@ -228,7 +228,7 @@ void theGothGambit(
     &velMultiplicator, &explosionRadius, &isHittableNearby, &maxPower
   );
 
-  // tryFindShelter(app, heightMap, app->currPlayer, app->currPlayer == firstPlayer);
+  tryFindShelter(app, heightMap, app->currPlayer, app->currPlayer == firstPlayer);
 
   for (int32_t angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
