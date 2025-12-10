@@ -147,8 +147,7 @@ static SDL_Point findNearestStone(SDL_bool commingFromLeft) {
 }
 
 // func will find shelter (either under a cloud or behind a rock)
-static void tryFindShelter(App* app, int32_t* heightMap, Player* currPlayer,
-                        SDL_bool isFirstPlayer) {
+static void tryFindShelter(App* app, int32_t* heightMap, SDL_bool isFirstPlayer) {
   SDL_Point shelterPos = findNearestStone(isFirstPlayer);
   if (app->currPlayer->movesLeft == 0 || shelterPos.x == -1) return;
 
@@ -175,6 +174,16 @@ static void tryFindShelter(App* app, int32_t* heightMap, Player* currPlayer,
           app->currPlayer->tankObj->data.texture.constRect.x - shelterPos.x;
     }
   }
+}
+
+static int32_t countCloudsRightNow() {
+  int32_t count = MAXCLOUDS;
+  for (int32_t i = MAXCLOUDS + MAXSTONES - 1; i >= MAXSTONES; --i) {
+    if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
+      count--;
+    }
+  }
+  return count;
 }
 
 void theGothGambit(
@@ -231,7 +240,7 @@ void theGothGambit(
     &velMultiplicator, &explosionRadius, &isHittableNearby, &maxPower
   );
 
-  tryFindShelter(app, heightMap, app->currPlayer, app->currPlayer == firstPlayer);
+  if (!countCloudsRightNow()) tryFindShelter(app, heightMap, app->currPlayer == firstPlayer);
 
   for (int32_t angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
