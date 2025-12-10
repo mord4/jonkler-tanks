@@ -12,10 +12,49 @@
 #include <time.h>
 
 #include "../../math/math.h"
-#include "../../math/rand.h"
 #include "../obstacle.h"
 #include "../player_movement.h"
 #include "../specialConditions/wind.h"
+
+static void setWeaponStats(int32_t currWeapon, RenderObject* projectile,
+                           double* velMultiplicator, int32_t* explosionRadius,
+                           SDL_bool* isHittableNearby, int32_t* maxPower) {
+  switch (currWeapon) {
+    // small bullet
+    case 0:
+      *velMultiplicator = 2;
+      *explosionRadius = projectile->data.texture.constRect.w;
+      *isHittableNearby = SDL_FALSE;
+      *maxPower = 50;
+      break;
+    // BIG BULLET
+    case 1:
+      *velMultiplicator = 1.75;
+      *explosionRadius = projectile->data.texture.constRect.w;
+      *isHittableNearby = SDL_FALSE;
+      *maxPower = 50;
+      break;
+    // small boom
+    case 2:
+      *velMultiplicator = 1.25;
+      *explosionRadius = projectile->data.texture.constRect.w * 2;
+      *isHittableNearby = SDL_TRUE;
+      *maxPower = 75;
+      break;
+    // BIG BOOM
+    case 3:
+      *velMultiplicator = 1.0;
+      *explosionRadius = projectile->data.texture.constRect.w * 4;
+      *isHittableNearby = SDL_TRUE;
+      *maxPower = 99;
+      break;
+    default:
+      *velMultiplicator = 1.0;
+      *explosionRadius = projectile->data.texture.constRect.w;
+      *isHittableNearby = SDL_FALSE;
+      break;
+  }
+}
 
 // returning X coordinate of the nearest stone
 // or -1 if stone wasnt found
@@ -101,8 +140,9 @@ static SDL_Point findNearestCloud(SDL_bool isFirstPlayer) {
 }
 
 // func will find shelter (either under a cloud or behind a rock)
-static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
-                        SDL_bool isFirstPlayer) {
+static enum shelterType findShelter(App* app, int32_t* heightMap,
+                                    Player* currPlayer,
+                                    SDL_bool isFirstPlayer) {
   enum shelterType shelter;
 
   SDL_Point shelterPos = findNearestStone(isFirstPlayer);
@@ -114,7 +154,7 @@ static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
     log_info("cloud pos: %d (isFirst: %d)", shelterPos, isFirstPlayer);
 
     if (shelterPos.x == -1) {
-      return;
+      return NONE;
     } else {
       shelter = CLOUD;
     }
@@ -156,7 +196,7 @@ static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
       int dx = app->currPlayer->tankObj->data.texture.constRect.x -
                playerShouldBeHereX;
       if (abs(dx) < movingQuantum) {
-        return;
+        return shelter;
       }
       SDL_bool isMovingRight = SDL_TRUE;
 
@@ -167,19 +207,19 @@ static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
       dx = abs(dx);
 
       if (abs(dx) < movingQuantum) {
-        return;
+        return shelter;
       }
 
       if (!isMovingRight &&
           app->currPlayer->tankObj->data.texture.constRect.x <= 10) {
-        return;
+        return shelter;
       }
 
       // dx / movingQuantum = amount of steps required to move tank beneath the cloud
       for (int i = 0; i < (int)ceil(dx * 1. / movingQuantum); ++i) {
         if (smoothMove(app, isFirstPlayer, isMovingRight, heightMap,
                        obstacles)) {
-          return;
+          return shelter;
         }
       }
     } else {
@@ -189,7 +229,7 @@ static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
                 currPlayer->tankObj->data.texture.constRect.w);
 
       if (abs(dx) < movingQuantum) {
-        return;
+        return shelter;
       }
       SDL_bool isMovingRight = SDL_FALSE;
       if (dx < 0) {
@@ -200,7 +240,7 @@ static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
       if (isMovingRight &&
           app->currPlayer->tankObj->data.texture.constRect.x + 50 >=
               app->screenWidth) {
-        return;
+        return shelter;
       }
 
       log_warn("SECOND WANNA MOVE %d TIMES, right: %d", dx / movingQuantum,
@@ -209,11 +249,68 @@ static void findShelter(App* app, int32_t* heightMap, Player* currPlayer,
       for (int i = 0; i < (int)ceil(dx * 1. / movingQuantum); ++i) {
         if (smoothMove(app, isFirstPlayer, isMovingRight, heightMap,
                        obstacles)) {
-          return;
+          return shelter;
         }
       }
     }
   }
+  return shelter;
+}
+
+static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
+                      int32_t* heightMap, RenderObject* projectile,
+                      RenderObject* explosion, SDL_bool* regenMap,
+                      SDL_bool* recalcBulletPath, double initGunAngle,
+                      int32_t maxPower, SDL_FPoint* currPos, double initVel,
+                      double windStrength, SDL_Point* collisionP1,
+                      SDL_Point* collisionP2, SDL_Point* collisionP3,
+                      int32_t collisionP1R, int32_t collisionP2R,
+                      int32_t collisionP3R, enum shootingPrio shootingPrio) {
+  for (int angle = 0; angle <= 120; ++angle) {
+    double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
+
+    if (app->currPlayer == secondPlayer)
+      currAngle += 180 + angle;
+    else
+      currAngle += -angle;
+
+    currAngle = round(currAngle);
+    currAngle = 360 - normalizeAngle(currAngle);
+
+    for (int power = 0; power <= maxPower; ++power) {
+      int32_t hitPos =
+          calcHitPosition(currPos, initVel, initGunAngle, heightMap, app,
+                          collisionP1, collisionP2, collisionP3, collisionP1R,
+                          collisionP2R, collisionP3R, projectile, windStrength);
+
+      // if weapon is broken the best option is to shoot obstacles near the enemy
+      if (hitPos < -1 && shootingPrio != OBSTACLES) {
+        smoothChangeAngle(app->currPlayer, angle, &app->currState,
+                          recalcBulletPath);
+        smoothChangePower(app->currPlayer, power, &app->currState,
+                          recalcBulletPath);
+        shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
+              regenMap);
+        recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
+        recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
+        return 1;
+      }
+
+      // obstacle shoot
+      if (hitPos == INT_MAX && shootingPrio != TANK) {
+        smoothChangeAngle(app->currPlayer, angle, &app->currState,
+                          recalcBulletPath);
+        smoothChangePower(app->currPlayer, power, &app->currState,
+                          recalcBulletPath);
+        shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
+              regenMap);
+        recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
+        recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
 
 void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
@@ -304,42 +401,11 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
   double velMultiplicator;
   int32_t explosionRadius;
   SDL_bool isHittableNearby;
-  switch (app->currWeapon) {
-    // small bullet
-    case 0:
-      velMultiplicator = 2;
-      explosionRadius = projectile->data.texture.constRect.w;
-      isHittableNearby = SDL_FALSE;
-      break;
-    // BIG BULLET
-    case 1:
-      velMultiplicator = 1.75;
-      explosionRadius = projectile->data.texture.constRect.w;
-      isHittableNearby = SDL_FALSE;
-      break;
-    // small boom
-    case 2:
-      velMultiplicator = 1.25;
-      explosionRadius = projectile->data.texture.constRect.w * 2;
-      isHittableNearby = SDL_TRUE;
-      break;
-    // BIG BOOM
-    case 3:
-      velMultiplicator = 1.0;
-      explosionRadius = projectile->data.texture.constRect.w * 4;
-      isHittableNearby = SDL_TRUE;
-      break;
-    default:
-      velMultiplicator = 1.0;
-      explosionRadius = projectile->data.texture.constRect.w;
-      isHittableNearby = SDL_FALSE;
-      break;
-  }
+  int32_t maxPower;
+  setWeaponStats(app->currWeapon, projectile, &velMultiplicator,
+                 &explosionRadius, &isHittableNearby, &maxPower);
 
   int32_t initVel = app->currPlayer->firingPower * velMultiplicator;
-
-  // getting current weapon state
-  SDL_bool isWeaponBroken = app->currPlayer->buffs.weaponIsBroken;
 
   // getting current wind speed
   int32_t windStrengthMin, windStrengthMax;
@@ -347,13 +413,45 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
   double windStrength = AVG(windStrengthMin, windStrengthMax);
 
   // 1. (!) firstly we should find shelter
-  findShelter(app, heightMap, app->currPlayer, app->currPlayer == firstPlayer);
+  enum shelterType currShelterType = findShelter(
+      app, heightMap, app->currPlayer, app->currPlayer == firstPlayer);
 
-  // calculating initHitPosition
-  int32_t hitPos =
-      calcHitPosition(&currPos, initVel, initGunAngle, heightMap, app,
-                      &collisionP1, &collisionP2, &collisionP3, collisionP1R,
-                      collisionP2R, collisionP3R, projectile);
+  if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                 explosion, regenMap, recalcBulletPath, initGunAngle, maxPower,
+                 &currPos, initVel, windStrength, &collisionP1, &collisionP2,
+                 &collisionP3, collisionP1R, collisionP2R, collisionP3R,
+                 idgf)) {
+    return;
+  }
 
-  log_info("[bot1] curr hit pos is at %d", hitPos);
+  // that means we can move backwards(forwards) on right(left) tank
+  if (currShelterType == STONE) {
+    const int maxMovingAttempts = 2;
+    //
+    for (int i = 0; i < maxMovingAttempts; ++i) {
+      smoothMove(app, app->currPlayer == firstPlayer,
+                 app->currPlayer == secondPlayer, heightMap, obstacles);
+
+      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                     explosion, regenMap, recalcBulletPath, initGunAngle,
+                     maxPower, &currPos, initVel, windStrength, &collisionP1,
+                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+                     collisionP3R, TANK)) {
+        return;
+      }
+    }
+    // IF HE WAS NOT ABLE TO HIT ENEMY STRAIGHT -> GO BACK BEHIND THE ROCK
+    for (int i = 0; i < maxMovingAttempts; ++i) {
+      smoothMove(app, app->currPlayer == firstPlayer,
+                 app->currPlayer == firstPlayer, heightMap, obstacles);
+      // hitting obstacle from safer position
+      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                     explosion, regenMap, recalcBulletPath, initGunAngle,
+                     maxPower, &currPos, initVel, windStrength, &collisionP1,
+                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+                     collisionP3R, OBSTACLES)) {
+        return;
+      }
+    }
+  }
 }

@@ -218,6 +218,9 @@ void theGothGambit(
       .y = (float)initPos.y,
   };
 
+  int32_t windStrengthMin, windStrengthMax;
+  getWindRange(app, &windStrengthMin, &windStrengthMax);
+
   double velMultiplicator;
   int32_t explosionRadius;
   SDL_bool isHittableNearby;
@@ -240,10 +243,10 @@ void theGothGambit(
     currAngle = 360 - normalizeAngle(currAngle);
 
     for (int32_t power = 0; power <= maxPower; ++power) {
-      int32_t hitPos = calcHitPosition(&currPos, power * velMultiplicator,
-                                       currAngle, heightMap, app, &collisionP1,
-                                       &collisionP2, &collisionP3, collisionP1R,
-                                       collisionP2R, collisionP3R, projectile);
+      int32_t hitPos = calcHitPosition(
+          &currPos, power * velMultiplicator, currAngle, heightMap, app,
+          &collisionP1, &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+          collisionP3R, projectile, AVG(windStrengthMin, windStrengthMax));
       // collision hit
       if (hitPos < -1) {
         smoothChangeAngle(app->currPlayer, angle, &app->currState,

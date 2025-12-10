@@ -17,17 +17,11 @@
 #include "../../math/rand.h"
 #include "../obstacle.h"
 #include "../player_movement.h"
+#include "../specialConditions/wind.h"
 
-void theGothGambit(
-  App* app,
-  Player* firstPlayer,
-  Player* secondPlayer,
-  int32_t* heightMap,
-  RenderObject* projectile,
-  RenderObject* explosion,
-  SDL_bool* regenMap,
-  SDL_bool* recalcBulletPath,
-  double initGunAngle
-);
+void theGothGambit(App* app, Player* firstPlayer, Player* secondPlayer,
+                   int32_t* heightMap, RenderObject* projectile,
+                   RenderObject* explosion, SDL_bool* regenMap,
+                   SDL_bool* recalcBulletPath, double initGunAngle);
 
 #endif
