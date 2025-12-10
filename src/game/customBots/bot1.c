@@ -245,7 +245,10 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
       .y = (float)initPos.y,
   };
 
-  for (int angle = 0; angle <= 120; ++angle) {
+  int32_t currAngleSkip = 0;
+  const int32_t maxAngleSkip = 5;
+
+  for (int angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
     if (app->currPlayer == secondPlayer)
@@ -257,13 +260,15 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
     currAngle = 360 - normalizeAngle(currAngle);
 
     for (int power = maxPower; power >= 0; --power) {
-      int32_t hitPos = calcHitPosition(&currPos, power * velMult, initGunAngle,
-                                       heightMap, app, collisionP1, collisionP2,
-                                       collisionP3, collisionP1R, collisionP2R,
-                                       collisionP3R, projectile, windStrength);
-      log_fatal("%d %lf %lf", power, power * velMult, currAngle);
-      // if weapon is broken the best option is to shoot obstacles near the enemy
+      int32_t hitPos =
+          calcHitPosition(&currPos, power * velMult, currAngle, heightMap, app,
+                          collisionP1, collisionP2, collisionP3, collisionP1R,
+                          collisionP2R, collisionP3R, projectile, windStrength);
+      // collision hit
       if (hitPos < -1) {
+        if (++currAngleSkip % maxAngleSkip != 0) {
+          break;
+        }
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
@@ -275,8 +280,10 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
         recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
         return 1;
       }
-      // obstacle shoot
       if (hitPos == INT_MAX_VAL && shootingPrio != TANK) {
+        if (++currAngleSkip % maxAngleSkip != 0) {
+          break;
+        }
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
@@ -412,7 +419,7 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
   if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                  explosion, regenMap, recalcBulletPath, initGunAngle, maxPower,
                  windStrength, &collisionP1, &collisionP2, &collisionP3,
-                 collisionP1R, collisionP2R, collisionP3R, idgf,
+                 collisionP1R, collisionP2R, collisionP3R, TANK,
                  velMultiplicator)) {
     return;
   }
