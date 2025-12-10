@@ -101,7 +101,7 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
   projectile->disableRendering = SDL_FALSE;
 
   // select the time interval for recalculations
-  const double dt = 1. / 10;
+  const double dt = 1. / 45;
   double currTime = 0.0;
 
   double vel;
@@ -300,12 +300,14 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
                      damageMultiplier;
         if (app->currPlayer->buffs.isDoubleDamage) {
           deltaDamage *= 2.0;
-          enemyPlayer->health -= healthDamage * 2.0;
+          healthDamage *= 2.0;
         }
         if (enemyPlayer->buffs.isShielded) {
           deltaDamage *= 0.15;  // 85% damage blocked
-          enemyPlayer->health -= healthDamage * 0.15;
+          healthDamage *= 0.15;
         }
+
+        enemyPlayer->health -= healthDamage;
         app->currPlayer->score += (int32_t)deltaDamage;
       }
       // hitting before the center
@@ -315,12 +317,14 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
                      damageMultiplier;
         if (app->currPlayer->buffs.isDoubleDamage) {
           deltaDamage *= 2.0;
-          enemyPlayer->health -= healthDamage * 2.0;
+          healthDamage *= 2.0;
         }
         if (enemyPlayer->buffs.isShielded) {
           deltaDamage *= 0.15;  // 85% damage blocked
-          enemyPlayer->health -= healthDamage * 0.15;
+          healthDamage *= 0.15;
         }
+
+        enemyPlayer->health -= healthDamage;
         app->currPlayer->score += (int32_t)deltaDamage;
       }
       if (isHittableNearby == SDL_FALSE) {
@@ -366,12 +370,14 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
                     damageMultiplier / 1.5;
             if (app->currPlayer->buffs.isDoubleDamage) {
               deltaDamage *= 2.0;
-              enemyPlayer->health -= healthDamage * 2.0 / 2.0;
+              healthDamage *= 2.0 / 2;
             }
             if (enemyPlayer->buffs.isShielded) {
               deltaDamage *= 0.15;  // 85% damage blocked
-              enemyPlayer->health -= healthDamage * 0.15 / 2.0;
+              healthDamage *= 0.15 / 2;
             }
+
+            enemyPlayer->health -= healthDamage;
             app->currPlayer->score += (int32_t)deltaDamage;
           }
           // hitting before center (before left tank corner)
@@ -382,12 +388,14 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
                         damageMultiplier / 1.5;
             if (app->currPlayer->buffs.isDoubleDamage) {
               deltaDamage *= 2.0;
-              enemyPlayer->health -= healthDamage * 2.0 / 2.0;
+              healthDamage *= 2.0 / 2;
             }
             if (enemyPlayer->buffs.isShielded) {
               deltaDamage *= 0.15;  // 85% damage blocked
-              enemyPlayer->health -= healthDamage * 0.15 / 2.0;
+              healthDamage *= 0.15 / 2;
             }
+
+            enemyPlayer->health -= healthDamage;
             app->currPlayer->score += (int32_t)deltaDamage;
           }
         }
@@ -423,7 +431,7 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
       break;
     }
 
-    SDL_Delay(16);
+    SDL_Delay(3);
   }
 
   // hiding it again

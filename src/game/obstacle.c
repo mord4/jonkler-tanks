@@ -48,11 +48,7 @@ RenderObject* createCloud(App* app, int32_t* heightmap, int32_t startPos,
                              app->scalingFactorY});
   }
   obstacles[MAXSTONES + currCloudCnt].obstacleObject = res;
-  if (obstacles[MAXSTONES + currCloudCnt].health < 0) {
-    obstacles[MAXSTONES + currCloudCnt].health += 1337;
-  } else {
-    obstacles[MAXSTONES + currCloudCnt].health = 1;
-  }
+  obstacles[MAXSTONES + currCloudCnt].health = 1;
 
   return res;
 }
@@ -63,12 +59,8 @@ RenderObject* createStone(App* app, int32_t* heightmap, int32_t startPos,
   int x = getRandomValue(startPos, endPos);
   RenderObject* res = renderStoneWithAngle(app, heightmap, x);
   obstacles[currStoneCnt].obstacleObject = res;
-  if (obstacles[currStoneCnt].health < 0) {
-    // if was loaded -> restoring health
-    obstacles[currStoneCnt].health += 1337;
-  } else {
-    obstacles[currStoneCnt].health = 3;
-  }
+  obstacles[currStoneCnt].health = 3;
+
   return res;
 }
 
@@ -101,18 +93,25 @@ SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY) {
     if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
       continue;
     }
-
     int obstacleX = obstacles[i].obstacleObject->data.texture.constRect.x;
     int obstacleW = obstacles[i].obstacleObject->data.texture.constRect.w;
 
     int obstacleY = obstacles[i].obstacleObject->data.texture.constRect.y;
     int obstacleH = obstacles[i].obstacleObject->data.texture.constRect.h;
-
     SDL_Rect obstacleRect = {
         .x = obstacleX, .y = obstacleY, .h = obstacleH, .w = obstacleW};
 
-    if (PointInRotatedRect(&(obstacleRect), &(SDL_Point){currX, currY},
-                           obstacles[i].obstacleObject->data.texture.angle)) {
+    if (i >= MAXSTONES) {
+      if (SDL_PointInRect(&(SDL_Point){currX, currY}, &obstacleRect)) {
+        if (obstacles[i].health-- == 0) {
+          // hiding destroyed objects
+          obstacles[i].obstacleObject->disableRendering = SDL_TRUE;
+        }
+        return SDL_TRUE;
+      }
+    } else if (PointInRotatedRect(
+                   &(obstacleRect), &(SDL_Point){currX, currY},
+                   obstacles[i].obstacleObject->data.texture.angle)) {
       if (obstacles[i].health-- == 0) {
         // hiding destroyed objects
         obstacles[i].obstacleObject->disableRendering = SDL_TRUE;

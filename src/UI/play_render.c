@@ -209,13 +209,18 @@ static void playMainLoop(App* app, struct playMainObjects* objs) {
       objs->oldX != app->currPlayer->x ||
       objs->oldScorePlayer1 != objs->firstPlayer.score ||
       objs->oldScorePlayer2 != objs->secondPlayer.score ||
-      app->currWeapon != objs->oldWeapon) {
+      app->currWeapon != objs->oldWeapon ||
+      objs->oldHealthPlayer1 != objs->firstPlayer.score ||
+      objs->oldHealthPlayer2 != objs->secondPlayer.score) {
     SDL_DestroyTexture(objs->currentPlayerInfo->data.texture.texture);
     objs->oldAngle = app->currPlayer->gunAngle;
     objs->oldMovesLeft = app->currPlayer->movesLeft;
     objs->oldFiringPower = app->currPlayer->firingPower;
     objs->oldX = app->currPlayer->x;
     objs->oldWeapon = app->currWeapon;
+    objs->oldHealthPlayer1 = objs->firstPlayer.score;
+    objs->oldHealthPlayer2 = objs->secondPlayer.score;
+
     snprintf(temp, sizeof(temp),
              "Moves left: %d Gun angle: %02d Firing power: %02d ",
              objs->oldMovesLeft, (int32_t)objs->oldAngle, objs->oldFiringPower);
@@ -269,10 +274,12 @@ static void playMainLoop(App* app, struct playMainObjects* objs) {
       objs->arrow->data.texture.flipFlag = SDL_FLIP_HORIZONTAL;
     }
   }
-  if (objs->oldScorePlayer1 != objs->firstPlayer.score) {
+
+  if (objs->oldHealthPlayer1 != objs->firstPlayer.health) {
     SDL_DestroyTexture(objs->playerScore1->data.texture.texture);
-    objs->oldScorePlayer1 = objs->firstPlayer.score;
-    snprintf(temp, sizeof(temp), "SCORE: %4d", objs->oldScorePlayer1);
+    objs->oldHealthPlayer1 =
+        objs->firstPlayer.health > 0 ? objs->firstPlayer.health : 0;
+    snprintf(temp, sizeof(temp), "HEALTH: %4d", objs->oldHealthPlayer1);
     objs->playerScore1->data.texture.texture =
         createTextTexture(app->renderer, objs->smallFont, temp, 168, 0, 0, 255);
     SDL_QueryTexture(objs->playerScore1->data.texture.texture, NULL, NULL,
@@ -290,10 +297,11 @@ static void playMainLoop(App* app, struct playMainObjects* objs) {
     objs->p1ShieldIcon->data.texture.constRect.y =
         objs->p1DoubleDmgIcon->data.texture.constRect.y;
   }
-  if (objs->oldScorePlayer2 != objs->secondPlayer.score) {
+  if (objs->oldHealthPlayer2 != objs->secondPlayer.health) {
     SDL_DestroyTexture(objs->playerScore2->data.texture.texture);
-    objs->oldScorePlayer2 = objs->secondPlayer.score;
-    snprintf(temp, sizeof(temp), "SCORE: %4d", objs->oldScorePlayer2);
+    objs->oldHealthPlayer2 =
+        objs->secondPlayer.health > 0 ? objs->secondPlayer.health : 0;
+    snprintf(temp, sizeof(temp), "HEALTH: %4d", objs->oldHealthPlayer2);
     objs->playerScore2->data.texture.texture = createTextTexture(
         app->renderer, objs->smallFont, temp, 0, 168, 107, 255);
     SDL_QueryTexture(objs->playerScore2->data.texture.texture, NULL, NULL,
@@ -370,6 +378,8 @@ inline static void playMainClear(App* app, struct playMainObjects* objs) {
 
   free(objs->heightMap);
   free(objs->basedMap);
+
+  free(objs);
 }
 
 // main game loop

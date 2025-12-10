@@ -79,6 +79,8 @@ struct playMainObjects {
   int32_t oldScorePlayer1;
   int32_t oldScorePlayer2;
   int32_t oldWeapon;
+  int32_t oldHealthPlayer1;
+  int32_t oldHealthPlayer2;
 
   RenderObject* currentPlayerInfo;
   RenderObject* playerScore1;

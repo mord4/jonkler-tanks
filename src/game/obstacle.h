@@ -5,7 +5,7 @@
 #include "obstacle_struct.h"
 
 #define MAXSTONES 2
-#define MAXCLOUDS 8
+#define MAXCLOUDS 10
 
 RenderObject* createCloud(App* app, int32_t* heightmap, int32_t startPos,
                           int32_t endPos, int32_t probability,

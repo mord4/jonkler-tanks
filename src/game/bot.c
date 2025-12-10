@@ -11,28 +11,23 @@
 #include <math.h>
 
 #include "../math/math.h"
-#include "../math/rand.h"
-#include "log/log.h"
-#include "obstacle.h"
 #include "player_movement.h"
-#include "specialConditions/wind.h"
 
 #include "customBots/bot1.h"
 #include "customBots/bot2.h"
 #include "customBots/bot3.h"
 
-static Player* whoIsEnenmy(Player* currPlayer, Player* firstPlayer, Player* secondPlayer)
-{
+static Player* whoIsEnenmy(Player* currPlayer, Player* firstPlayer,
+                           Player* secondPlayer) {
   if (currPlayer == firstPlayer) return secondPlayer;
   return firstPlayer;
 }
 
-static void setPlayerCollision(
-  App* app, Player* enemy, Player* firstPlayer, Player* secondPlayer,
-  SDL_Point* collisionP1, SDL_Point* collisionP2, SDL_Point* collisionP3,
-  int32_t* collisionP1R, int32_t* collisionP2R, int32_t* collisionP3R
-)
-{
+static void setPlayerCollision(App* app, Player* enemy, Player* firstPlayer,
+                               Player* secondPlayer, SDL_Point* collisionP1,
+                               SDL_Point* collisionP2, SDL_Point* collisionP3,
+                               int32_t* collisionP1R, int32_t* collisionP2R,
+                               int32_t* collisionP3R) {
   if (app->currPlayer == secondPlayer) {
     *collisionP1 = getPixelScreenPosition(
         (SDL_Point){enemy->tankObj->data.texture.scaleRect.x,
@@ -84,12 +79,9 @@ static void setPlayerCollision(
   }
 }
 
-static void setWeaponStats(
-  int32_t currWeapon, RenderObject* projectile,
-  double* velMultiplicator, int32_t* explosionRadius, SDL_bool* isHittableNearby,
-  int32_t* maxPower
-)
-{
+static void setWeaponStats(int32_t currWeapon, RenderObject* projectile,
+                           double* velMultiplicator, int32_t* explosionRadius,
+                           SDL_bool* isHittableNearby, int32_t* maxPower) {
   switch (currWeapon) {
     // small bullet
     case 0:
@@ -127,28 +119,19 @@ static void setWeaponStats(
   }
 }
 
-static int32_t justSimpleBot(
-  App* app,
-  Player* firstPlayer,
-  Player* secondPlayer,
-  int32_t* heightMap,
-  RenderObject* projectile,
-  RenderObject* explosion,
-  SDL_bool* regenMap,
-  SDL_bool* recalcBulletPath,
-  double initGunAngle
-)
-{
+static int32_t justSimpleBot(App* app, Player* firstPlayer,
+                             Player* secondPlayer, int32_t* heightMap,
+                             RenderObject* projectile, RenderObject* explosion,
+                             SDL_bool* regenMap, SDL_bool* recalcBulletPath,
+                             double initGunAngle) {
   Player* enemy = whoIsEnenmy(app->currPlayer, firstPlayer, secondPlayer);
 
   SDL_Point collisionP1, collisionP2, collisionP3;
   int32_t collisionP1R, collisionP2R, collisionP3R;
 
-  setPlayerCollision(
-    app, enemy, firstPlayer, secondPlayer,
-    &collisionP1, &collisionP2, &collisionP3,
-    &collisionP1R, &collisionP2R, &collisionP3R
-  );
+  setPlayerCollision(app, enemy, firstPlayer, secondPlayer, &collisionP1,
+                     &collisionP2, &collisionP3, &collisionP1R, &collisionP2R,
+                     &collisionP3R);
 
   SDL_Point initPos = getPixelScreenPosition(
       (SDL_Point){app->currPlayer->tankObj->data.texture.scaleRect.x,
@@ -173,18 +156,16 @@ static int32_t justSimpleBot(
   SDL_bool isHittableNearby;
   int32_t maxPower;
 
-  setWeaponStats(
-    app->currWeapon, projectile,
-    &velMultiplicator, &explosionRadius, &isHittableNearby, &maxPower
-  );
-
-  SDL_bool isFinded = SDL_FALSE;
+  setWeaponStats(app->currWeapon, projectile, &velMultiplicator,
+                 &explosionRadius, &isHittableNearby, &maxPower);
 
   for (int32_t angle = 0; angle <= 120; ++angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
-    if (app->currPlayer == secondPlayer) currAngle += 180 + angle;
-    else currAngle += -angle;
+    if (app->currPlayer == secondPlayer)
+      currAngle += 180 + angle;
+    else
+      currAngle += -angle;
 
     currAngle = round(currAngle);
     currAngle = 360 - normalizeAngle(currAngle);
@@ -207,13 +188,12 @@ static int32_t justSimpleBot(
         recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
         return 0;
       }
-      
     }
   }
   smoothChangeAngle(app->currPlayer, app->currPlayer->gunAngle, &app->currState,
                     recalcBulletPath);
-  smoothChangePower(app->currPlayer, app->currPlayer->firingPower, &app->currState,
-                    recalcBulletPath);
+  smoothChangePower(app->currPlayer, app->currPlayer->firingPower,
+                    &app->currState, recalcBulletPath);
   SDL_Delay(200);
   shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
         regenMap);
@@ -238,29 +218,29 @@ void botMain(App* app, Player* player1, Player* player2, int32_t* heightMap,
   // normalizing just to be sure its in [0;2pi) and now its counterclockwise
   initGunAngle = 360 - normalizeAngle(initGunAngle);
 
-  if (app->currState == PLAY) { 
+  if (app->currState == PLAY) {
     switch (playerType) {
-  #ifdef BOT1_ADDED
+#ifdef BOT1_ADDED
       case BOT1:
         bot1Main(app, player1, player2, heightMap, projectile, explosion,
-               regenMap, recalcBulletPath, initGunAngle);
+                 regenMap, recalcBulletPath, initGunAngle);
         break;
-  #endif
-  #ifdef BOT2_ADDED
+#endif
+#ifdef BOT2_ADDED
       case BOT2:
-        justSimpleBot(app, player1, player2, heightMap, projectile,
-                  explosion, regenMap, recalcBulletPath, 90);
+        justSimpleBot(app, player1, player2, heightMap, projectile, explosion,
+                      regenMap, recalcBulletPath, 90);
         break;
-  #endif
-  #ifdef BOT3_ADDED
+#endif
+#ifdef BOT3_ADDED
       case BOT3:
-        theGothGambit(app, player1, player2, heightMap, projectile,
-                          explosion, regenMap, recalcBulletPath, 90);
+        theGothGambit(app, player1, player2, heightMap, projectile, explosion,
+                      regenMap, recalcBulletPath, 90);
         break;
-  #endif
+#endif
       default:
-        justSimpleBot(app, player1, player2, heightMap, projectile,
-                          explosion, regenMap, recalcBulletPath, 90);
+        justSimpleBot(app, player1, player2, heightMap, projectile, explosion,
+                      regenMap, recalcBulletPath, 90);
         break;
     }
   }

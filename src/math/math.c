@@ -166,21 +166,28 @@ int32_t getAllowedNumber(App* app) {
   return value;
 }
 
+// this shit is not working properly > : (
 SDL_bool PointInRotatedRect(const SDL_Rect* rect, const SDL_Point* point,
                             float degrees) {
   if (!rect || !point) return SDL_FALSE;
+
+  float cx = (float)rect->x;
+  float cy = (float)rect->y + (float)rect->h;
+
   float rad = degrees * M_PI / 180.0f;
   float cos_a = cosf(rad);
   float sin_a = sinf(rad);
-  float cx = rect->x + rect->w * 0.5f;
-  float cy = rect->y + rect->h * 0.5f;
-  float dx = point->x - cx;
-  float dy = point->y - cy;
+
+  float dx = (float)point->x - cx;
+  float dy = (float)point->y - cy;
+
   float rot_x = dx * cos_a - dy * sin_a;
   float rot_y = dx * sin_a + dy * cos_a;
-  float hw = rect->w * 0.5f;
-  float hh = rect->h * 0.5f;
-  return (rot_x >= -hw && rot_x <= hw && rot_y >= -hh && rot_y <= hh);
+
+  float w = (float)rect->w;
+  float h = (float)rect->h;
+
+  return (rot_x >= 0.0f && rot_x <= w && rot_y >= -h && rot_y <= 0.0f);
 }
 
 void smoothChangeAngle(Player* player, int32_t endAngle, enum State* currState,
@@ -309,60 +316,4 @@ void getPositionAtSpecTime(SDL_FPoint* pos, double vx, double vy, double windVx,
   pos->y = vy * currTime - 0.5 * G * currTime * currTime + windVy * currTime;
 
   // printf("currTime: %lf, vy:%lf\n", currTime, vy - G * currTime);
-}
-
-int32_t findLineHeightIntersections(SDL_Point p1, SDL_Point p2,
-                                    int32_t* heightMap, int32_t width) {
-  int32_t x1 = p1.x, y1 = p1.y;
-  int32_t x2 = p2.x, y2 = p2.y;
-
-  // make sure x1 < x2
-  if (x1 > x2) {
-    int temp;
-    temp = x1;
-    x1 = x2;
-    x2 = temp;
-    temp = y1;
-    y1 = y2;
-    y2 = temp;
-  }
-
-  int32_t dx = x2 - x1;
-  int32_t dy = y2 - y1;
-
-  int32_t prevDiff = 0;
-  int32_t prevSet = 0;
-
-  for (int32_t x = x1; x <= x2 && x < width; x++) {
-    int32_t yLine = y1 + (int64_t)(dy) * (x - x1) / dx;
-    int32_t diff = yLine - heightMap[x];
-
-    // exact intersection
-    if (diff == 0) {
-      log_warn("EXACT: %d", x);
-      return x;
-    }
-
-    // sign change => crossing between x-1 and x
-    if (prevSet && ((diff > 0 && prevDiff < 0) || (diff < 0 && prevDiff > 0))) {
-      int32_t x0 = x - 1;
-      int32_t yLine0 = y1 + (int64_t)dy * (x0 - x1) / dx;
-
-      int32_t h0 = heightMap[x0];
-
-      int32_t approxX;
-      if (yLine == yLine0) {
-        approxX = x;
-      } else {
-        approxX = x0 + (h0 - yLine0) * (int64_t)(x - x0) / (yLine - yLine0);
-      }
-
-      log_warn("approx: %d", approxX);
-      return approxX;
-    }
-
-    prevDiff = diff;
-    prevSet = 1;
-  }
-  return -1;
 }
