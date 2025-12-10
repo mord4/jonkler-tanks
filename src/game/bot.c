@@ -171,10 +171,10 @@ static int32_t justSimpleBot(App* app, Player* firstPlayer,
     currAngle = 360 - normalizeAngle(currAngle);
 
     for (int32_t power = 0; power <= maxPower; ++power) {
-      int32_t hitPos = calcHitPosition(&currPos, power * velMultiplicator,
-                                       currAngle, heightMap, app, &collisionP1,
-                                       &collisionP2, &collisionP3, collisionP1R,
-                                       collisionP2R, collisionP3R, projectile);
+      int32_t hitPos = calcHitPosition(
+          &currPos, power * velMultiplicator, currAngle, heightMap, app,
+          &collisionP1, &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+          collisionP3R, projectile, 0);
       // collision hit
       if (hitPos < -1) {
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
