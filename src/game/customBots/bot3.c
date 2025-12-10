@@ -182,10 +182,20 @@ static int32_t countCloudsRightNow() {
   return count;
 }
 
-void theGothGambit(App* app, Player* firstPlayer, Player* secondPlayer,
-                   int32_t* heightMap, RenderObject* projectile,
-                   RenderObject* explosion, SDL_bool* regenMap,
-                   SDL_bool* recalcBulletPath, double initGunAngle) {
+void theGothGambit(
+  App* app,
+  Player* firstPlayer,
+  Player* secondPlayer,
+  int32_t* heightMap,
+  RenderObject* projectile,
+  RenderObject* explosion,
+  SDL_bool* regenMap,
+  SDL_bool* recalcBulletPath,
+  double initGunAngle
+)
+{
+  if (!countCloudsRightNow()) tryFindShelter(app, heightMap, app->currPlayer == firstPlayer);
+
   Player* enemy = whoIsEnenmy(app->currPlayer, firstPlayer, secondPlayer);
 
   SDL_Point collisionP1, collisionP2, collisionP3;
