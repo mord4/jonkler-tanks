@@ -106,6 +106,77 @@ static void setWeaponStats(
   }
 }
 
+static SDL_Point findNearestStone(SDL_bool commingFromLeft) {
+  SDL_Point res = {-1, -1};
+  if (!commingFromLeft) {
+    for (int32_t i = MAXSTONES - 1; i >= 0; --i) {
+      // skipping non existing objects or alredy destroyed objects
+      if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
+        continue;
+      }
+
+      int obstacleX = obstacles[i].obstacleObject->data.texture.constRect.x;
+      int obstacleW = obstacles[i].obstacleObject->data.texture.constRect.w;
+
+      res.x = obstacleX;
+      res.x += obstacleW;
+
+      int obstacleY = obstacles[i].obstacleObject->data.texture.constRect.y;
+
+      res.y = obstacleY;
+
+      break;
+    }
+  } else {
+    for (int32_t i = 0; i < MAXSTONES; ++i) {
+      // skipping non existing objects or alredy destroyed objects
+      if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
+        continue;
+      }
+
+      int obstacleX = obstacles[i].obstacleObject->data.texture.constRect.x;
+      res.x = obstacleX;
+
+      int obstacleY = obstacles[i].obstacleObject->data.texture.constRect.y;
+
+      res.y = obstacleY;
+      break;
+    }
+  }
+  return res;
+}
+
+// func will find shelter (either under a cloud or behind a rock)
+static void tryFindShelter(App* app, int32_t* heightMap, Player* currPlayer,
+                        SDL_bool isFirstPlayer) {
+  SDL_Point shelterPos = findNearestStone(isFirstPlayer);
+  if (app->currPlayer->movesLeft == 0 || shelterPos.x == -1) return;
+
+  const int movingQuantum = 45;
+
+  int currDistance;
+  if (isFirstPlayer) {
+    currDistance =
+        shelterPos.x - (app->currPlayer->tankObj->data.texture.constRect.x +
+                        app->currPlayer->tankObj->data.texture.constRect.w);
+  } else {
+    currDistance =
+        app->currPlayer->tankObj->data.texture.constRect.x - shelterPos.x;
+  }
+  while (
+      currDistance >= movingQuantum / 2 &&
+      !smoothMove(app, isFirstPlayer, isFirstPlayer, heightMap, obstacles)) {
+    if (isFirstPlayer) {
+      currDistance =
+          shelterPos.x - (app->currPlayer->tankObj->data.texture.constRect.x +
+                          app->currPlayer->tankObj->data.texture.constRect.w);
+    } else {
+      currDistance =
+          app->currPlayer->tankObj->data.texture.constRect.x - shelterPos.x;
+    }
+  }
+}
+
 void theGothGambit(
   App* app,
   Player* firstPlayer,
@@ -157,7 +228,7 @@ void theGothGambit(
     &velMultiplicator, &explosionRadius, &isHittableNearby, &maxPower
   );
 
-  SDL_bool isFinded = SDL_FALSE;
+  // tryFindShelter(app, heightMap, app->currPlayer, app->currPlayer == firstPlayer);
 
   for (int32_t angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
