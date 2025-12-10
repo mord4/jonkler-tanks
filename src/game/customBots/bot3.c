@@ -1,16 +1,17 @@
 #include "bot3.h"
 
-static Player* whoIsEnenmy(Player* currPlayer, Player* firstPlayer,
-                           Player* secondPlayer) {
+static Player* whoIsEnenmy(Player* currPlayer, Player* firstPlayer, Player* secondPlayer)
+{
   if (currPlayer == firstPlayer) return secondPlayer;
   return firstPlayer;
 }
 
-static void setPlayerCollision(App* app, Player* enemy, Player* firstPlayer,
-                               Player* secondPlayer, SDL_Point* collisionP1,
-                               SDL_Point* collisionP2, SDL_Point* collisionP3,
-                               int32_t* collisionP1R, int32_t* collisionP2R,
-                               int32_t* collisionP3R) {
+static void setPlayerCollision(
+  App* app, Player* enemy, Player* firstPlayer, Player* secondPlayer,
+  SDL_Point* collisionP1, SDL_Point* collisionP2, SDL_Point* collisionP3,
+  int32_t* collisionP1R, int32_t* collisionP2R, int32_t* collisionP3R
+)
+{
   if (app->currPlayer == secondPlayer) {
     *collisionP1 = getPixelScreenPosition(
         (SDL_Point){enemy->tankObj->data.texture.scaleRect.x,
@@ -62,30 +63,33 @@ static void setPlayerCollision(App* app, Player* enemy, Player* firstPlayer,
   }
 }
 
-static void setWeaponStats(int32_t currWeapon, RenderObject* projectile,
-                           double* velMultiplicator, int32_t* explosionRadius,
-                           SDL_bool* isHittableNearby, int32_t* maxPower) {
+static void setWeaponStats(
+  int32_t currWeapon, RenderObject* projectile,
+  double* velMultiplicator, int32_t* explosionRadius, SDL_bool* isHittableNearby,
+  int32_t* maxPower
+)
+{
   switch (currWeapon) {
     // small bullet
     case 0:
       *velMultiplicator = 2;
       *explosionRadius = projectile->data.texture.constRect.w;
       *isHittableNearby = SDL_FALSE;
-      *maxPower = 50;
+      *maxPower = 99;
       break;
     // BIG BULLET
     case 1:
       *velMultiplicator = 1.75;
       *explosionRadius = projectile->data.texture.constRect.w;
       *isHittableNearby = SDL_FALSE;
-      *maxPower = 50;
+      *maxPower = 99;
       break;
     // small boom
     case 2:
       *velMultiplicator = 1.25;
       *explosionRadius = projectile->data.texture.constRect.w * 2;
       *isHittableNearby = SDL_TRUE;
-      *maxPower = 75;
+      *maxPower = 99;
       break;
     // BIG BOOM
     case 3:
@@ -102,18 +106,108 @@ static void setWeaponStats(int32_t currWeapon, RenderObject* projectile,
   }
 }
 
-void theGothGambit(App* app, Player* firstPlayer, Player* secondPlayer,
-                   int32_t* heightMap, RenderObject* projectile,
-                   RenderObject* explosion, SDL_bool* regenMap,
-                   SDL_bool* recalcBulletPath, double initGunAngle) {
+static SDL_Point findNearestStone(SDL_bool commingFromLeft) {
+  SDL_Point res = {-1, -1};
+  if (!commingFromLeft) {
+    for (int32_t i = MAXSTONES - 1; i >= 0; --i) {
+      // skipping non existing objects or alredy destroyed objects
+      if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
+        continue;
+      }
+
+      int obstacleX = obstacles[i].obstacleObject->data.texture.constRect.x;
+      int obstacleW = obstacles[i].obstacleObject->data.texture.constRect.w;
+
+      res.x = obstacleX;
+      res.x += obstacleW;
+
+      int obstacleY = obstacles[i].obstacleObject->data.texture.constRect.y;
+
+      res.y = obstacleY;
+
+      break;
+    }
+  } else {
+    for (int32_t i = 0; i < MAXSTONES; ++i) {
+      // skipping non existing objects or alredy destroyed objects
+      if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
+        continue;
+      }
+
+      int obstacleX = obstacles[i].obstacleObject->data.texture.constRect.x;
+      res.x = obstacleX;
+
+      int obstacleY = obstacles[i].obstacleObject->data.texture.constRect.y;
+
+      res.y = obstacleY;
+      break;
+    }
+  }
+  return res;
+}
+
+// func will find shelter (either under a cloud or behind a rock)
+static void tryFindShelter(App* app, int32_t* heightMap, SDL_bool isFirstPlayer) {
+  SDL_Point shelterPos = findNearestStone(isFirstPlayer);
+  if (app->currPlayer->movesLeft == 0 || shelterPos.x == -1) return;
+
+  const int movingQuantum = 45;
+
+  int currDistance;
+  if (isFirstPlayer) {
+    currDistance =
+        shelterPos.x - (app->currPlayer->tankObj->data.texture.constRect.x +
+                        app->currPlayer->tankObj->data.texture.constRect.w);
+  } else {
+    currDistance =
+        app->currPlayer->tankObj->data.texture.constRect.x - shelterPos.x;
+  }
+  while (
+      currDistance >= movingQuantum / 2 &&
+      !smoothMove(app, isFirstPlayer, isFirstPlayer, heightMap, obstacles)) {
+    if (isFirstPlayer) {
+      currDistance =
+          shelterPos.x - (app->currPlayer->tankObj->data.texture.constRect.x +
+                          app->currPlayer->tankObj->data.texture.constRect.w);
+    } else {
+      currDistance =
+          app->currPlayer->tankObj->data.texture.constRect.x - shelterPos.x;
+    }
+  }
+}
+
+static int32_t countCloudsRightNow() {
+  int32_t count = MAXCLOUDS;
+  for (int32_t i = MAXCLOUDS + MAXSTONES - 1; i >= MAXSTONES; --i) {
+    if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
+      count--;
+    }
+  }
+  return count;
+}
+
+void theGothGambit(
+  App* app,
+  Player* firstPlayer,
+  Player* secondPlayer,
+  int32_t* heightMap,
+  RenderObject* projectile,
+  RenderObject* explosion,
+  SDL_bool* regenMap,
+  SDL_bool* recalcBulletPath,
+  double initGunAngle
+)
+{
   Player* enemy = whoIsEnenmy(app->currPlayer, firstPlayer, secondPlayer);
 
   SDL_Point collisionP1, collisionP2, collisionP3;
   int32_t collisionP1R, collisionP2R, collisionP3R;
 
-  setPlayerCollision(app, enemy, firstPlayer, secondPlayer, &collisionP1,
-                     &collisionP2, &collisionP3, &collisionP1R, &collisionP2R,
-                     &collisionP3R);
+  setPlayerCollision(
+    app, enemy, firstPlayer, secondPlayer,
+    &collisionP1, &collisionP2, &collisionP3,
+    &collisionP1R, &collisionP2R, &collisionP3R
+  );
 
   SDL_Point initPos = getPixelScreenPosition(
       (SDL_Point){app->currPlayer->tankObj->data.texture.scaleRect.x,
@@ -141,16 +235,18 @@ void theGothGambit(App* app, Player* firstPlayer, Player* secondPlayer,
   SDL_bool isHittableNearby;
   int32_t maxPower;
 
-  setWeaponStats(app->currWeapon, projectile, &velMultiplicator,
-                 &explosionRadius, &isHittableNearby, &maxPower);
+  setWeaponStats(
+    app->currWeapon, projectile,
+    &velMultiplicator, &explosionRadius, &isHittableNearby, &maxPower
+  );
+
+  if (!countCloudsRightNow()) tryFindShelter(app, heightMap, app->currPlayer == firstPlayer);
 
   for (int32_t angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
-    if (app->currPlayer == secondPlayer)
-      currAngle += 180 + angle;
-    else
-      currAngle += -angle;
+    if (app->currPlayer == secondPlayer) currAngle += 180 + angle;
+    else currAngle += -angle;
 
     currAngle = round(currAngle);
     currAngle = 360 - normalizeAngle(currAngle);
@@ -173,12 +269,13 @@ void theGothGambit(App* app, Player* firstPlayer, Player* secondPlayer,
         recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
         return;
       }
+      
     }
   }
   smoothChangeAngle(app->currPlayer, app->currPlayer->gunAngle, &app->currState,
                     recalcBulletPath);
-  smoothChangePower(app->currPlayer, app->currPlayer->firingPower,
-                    &app->currState, recalcBulletPath);
+  smoothChangePower(app->currPlayer, app->currPlayer->firingPower, &app->currState,
+                    recalcBulletPath);
   SDL_Delay(200);
   shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
         regenMap);
