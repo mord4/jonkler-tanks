@@ -143,7 +143,7 @@ int32_t calcHitPosition(SDL_FPoint* initPos, double initVel, double angle,
     }
     // hit at obstacles
     // res will be currXscaled_currYScaled
-    if (checkObstacleCollisions(currX, currY)) {
+    if (checkObstacleCollisions(currX, currY, SDL_TRUE)) {
       return currXScaled * 10000 + currYScaled;
     }
 
@@ -155,6 +155,77 @@ int32_t calcHitPosition(SDL_FPoint* initPos, double initVel, double angle,
   }
 
   return -1;
+}
+
+static SDL_bool RotatedRectIntersect(const SDL_Rect* tankRect, double tankAngle,
+                                     const SDL_Rect* obstacleRect,
+                                     double obstacleAngle) {
+  if (!tankRect || !obstacleRect) return SDL_FALSE;
+
+  // get tank rectangle corners (approximate - treating as axis-aligned for simplicity)
+  // but check against the rotated obstacle
+  SDL_Point tankCorners[5];
+  tankCorners[0] = (SDL_Point){tankRect->x, tankRect->y};  // top-left
+  tankCorners[1] =
+      (SDL_Point){tankRect->x + tankRect->w, tankRect->y};  // top-right
+  tankCorners[2] =
+      (SDL_Point){tankRect->x, tankRect->y + tankRect->h};  // bottom-left
+  tankCorners[3] = (SDL_Point){tankRect->x + tankRect->w,
+                               tankRect->y + tankRect->h};  // bottom-right
+  tankCorners[4] = (SDL_Point){tankRect->x + tankRect->w / 2,
+                               tankRect->y + tankRect->h / 2};  // center
+
+  // check if any tank corner/center is inside the rotated obstacle rectangle
+  for (int i = 0; i < 5; i++) {
+    if (PointInRotatedRect(obstacleRect, &tankCorners[i],
+                           (float)obstacleAngle)) {
+      return SDL_TRUE;
+    }
+  }
+
+  // check obstacle corners against tank (if tank is rotated significantly)
+  // for simplicity, check obstacle center and corners against tank
+  SDL_Point obstacleCorners[5];
+  obstacleCorners[0] = (SDL_Point){obstacleRect->x, obstacleRect->y};
+  obstacleCorners[1] =
+      (SDL_Point){obstacleRect->x + obstacleRect->w, obstacleRect->y};
+  obstacleCorners[2] =
+      (SDL_Point){obstacleRect->x, obstacleRect->y + obstacleRect->h};
+  obstacleCorners[3] = (SDL_Point){obstacleRect->x + obstacleRect->w,
+                                   obstacleRect->y + obstacleRect->h};
+  obstacleCorners[4] = (SDL_Point){obstacleRect->x + obstacleRect->w / 2,
+                                   obstacleRect->y + obstacleRect->h / 2};
+
+  for (int i = 0; i < 5; i++) {
+    if (PointInRotatedRect(tankRect, &obstacleCorners[i], (float)tankAngle)) {
+      return SDL_TRUE;
+    }
+  }
+
+  // simple AABB check as fallback (axis-aligned bounding box)
+  // check if rectangles overlap when both are axis-aligned (approximate)
+  if (tankRect->x < obstacleRect->x + obstacleRect->w &&
+      tankRect->x + tankRect->w > obstacleRect->x &&
+      tankRect->y < obstacleRect->y + obstacleRect->h &&
+      tankRect->y + tankRect->h > obstacleRect->y) {
+    // potential overlap, do more detailed check
+    // check if centers are close enough
+    int tankCenterX = tankRect->x + tankRect->w / 2;
+    int tankCenterY = tankRect->y + tankRect->h / 2;
+    int obstacleCenterX = obstacleRect->x + obstacleRect->w / 2;
+    int obstacleCenterY = obstacleRect->y + obstacleRect->h / 2;
+
+    int dx = tankCenterX - obstacleCenterX;
+    int dy = tankCenterY - obstacleCenterY;
+    int maxDist =
+        (tankRect->w + tankRect->h + obstacleRect->w + obstacleRect->h) / 2;
+
+    if (dx * dx + dy * dy < maxDist * maxDist) {
+      return SDL_TRUE;  // Close enough to potentially collide
+    }
+  }
+
+  return SDL_FALSE;
 }
 
 // func that generates number for a weapon
@@ -233,15 +304,34 @@ int32_t smoothMove(App* app, SDL_bool isFirstPlayer, SDL_bool isRight,
   if (isRight) {
     int32_t i = 0;
     for (; i != 45; ++i) {
-      // trying to move forward
+      // check collision BEFORE moving - predict future position
+      int32_t xOffset = (isFirstPlayer == SDL_TRUE) ? 5 : 8;
+      int32_t futureX = app->currPlayer->tankObj->data.texture.constRect.x + 1;
+      double futureAngle =
+          360 - getAngle((futureX + xOffset) * app->scalingFactorX, heightMap,
+                         20 * app->scalingFactorX);
+      // recalcPlayerPos always uses x + 5 for Y calculation, even for second player
+      int32_t futureY =
+          -27 + app->screenHeight / app->scalingFactorY -
+          heightMap[(int32_t)((futureX + 5) * app->scalingFactorX)] /
+              app->scalingFactorY;
+
+      SDL_Rect futureTankRect =
+          app->currPlayer->tankObj->data.texture.constRect;
+      futureTankRect.x = futureX;
+      futureTankRect.y = futureY;
+
+      // check collision with stones using predicted position
       for (int j = 0; j < MAXSTONES; j++) {
-        if (obstacle[j].obstacleObject == NULL || obstacle[j].health == 0) {
+        if (obstacle[j].health == 0 || obstacle[j].obstacleObject == NULL) {
           continue;
         }
-        if ((app->currPlayer->tankObj->data.texture.constRect.x +
-             app->currPlayer->tankObj->data.texture.constRect.w - 5) >=
-                obstacle[j].obstacleObject->data.texture.constRect.x &&
-            isFirstPlayer) {
+
+        // use proper rotated rectangle collision detection with future position
+        if (RotatedRectIntersect(
+                &futureTankRect, futureAngle,
+                &obstacle[j].obstacleObject->data.texture.constRect,
+                obstacle[j].obstacleObject->data.texture.angle)) {
           if (i) {
             app->currPlayer->movesLeft--;
           }
@@ -249,8 +339,8 @@ int32_t smoothMove(App* app, SDL_bool isFirstPlayer, SDL_bool isRight,
         }
       }
 
-      if ((app->currPlayer->tankObj->data.texture.constRect.x +
-           app->currPlayer->tankObj->data.texture.constRect.w - 2) *
+      // check screen bounds
+      if ((futureX + app->currPlayer->tankObj->data.texture.constRect.w - 2) *
               app->scalingFactorX >=
           app->screenWidth) {
         if (i) {
@@ -259,8 +349,8 @@ int32_t smoothMove(App* app, SDL_bool isFirstPlayer, SDL_bool isRight,
         return 2;
       }
 
-      recalcPlayerPos(app, app->currPlayer, heightMap, 1,
-                      (isFirstPlayer == SDL_TRUE) ? 5 : 8);
+      // only move if no collision detected
+      recalcPlayerPos(app, app->currPlayer, heightMap, 1, xOffset);
 
       SDL_Delay(16);
     }
@@ -272,32 +362,51 @@ int32_t smoothMove(App* app, SDL_bool isFirstPlayer, SDL_bool isRight,
   } else {
     int32_t i = 0;
     for (; i != 45; ++i) {
-      // trying to move forward
+      // check collision BEFORE moving - predict future position
+      int32_t xOffset = (isFirstPlayer == SDL_TRUE) ? 5 : 8;
+      int32_t futureX = app->currPlayer->tankObj->data.texture.constRect.x - 1;
+      double futureAngle =
+          360 - getAngle((futureX + xOffset) * app->scalingFactorX, heightMap,
+                         20 * app->scalingFactorX);
+      // recalcPlayerPos always uses x + 5 for Y calculation, even for second player
+      int32_t futureY =
+          -27 + app->screenHeight / app->scalingFactorY -
+          heightMap[(int32_t)((futureX + 5) * app->scalingFactorX)] /
+              app->scalingFactorY;
+
+      SDL_Rect futureTankRect =
+          app->currPlayer->tankObj->data.texture.constRect;
+      futureTankRect.x = futureX;
+      futureTankRect.y = futureY;
+
+      // check collision with stones using predicted position
       for (int j = 0; j < MAXSTONES; j++) {
-        if (obstacle[j].obstacleObject == NULL || obstacle[j].health == 0) {
+        if (obstacle[j].health == 0 || obstacle[j].obstacleObject == NULL) {
           continue;
         }
-        if (app->currPlayer->tankObj->data.texture.constRect.x <=
-                obstacle[j].obstacleObject->data.texture.constRect.x +
-                    120 *
-                        cos(DEGTORAD(
-                            obstacle[j].obstacleObject->data.texture.angle)) &&
-            !isFirstPlayer) {
+
+        // use proper rotated rectangle collision detection with future position
+        if (RotatedRectIntersect(
+                &futureTankRect, futureAngle,
+                &obstacle[j].obstacleObject->data.texture.constRect,
+                obstacle[j].obstacleObject->data.texture.angle)) {
           if (i) {
             app->currPlayer->movesLeft--;
           }
           return 2;
         }
       }
-      if (app->currPlayer->tankObj->data.texture.constRect.x <= 2) {
+
+      // check screen bounds
+      if (futureX <= 2) {
         if (i) {
           app->currPlayer->movesLeft--;
         }
         return 2;
       }
 
-      recalcPlayerPos(app, app->currPlayer, heightMap, -1,
-                      (isFirstPlayer == SDL_TRUE) ? 5 : 8);
+      // only move if no collision detected
+      recalcPlayerPos(app, app->currPlayer, heightMap, -1, xOffset);
       SDL_Delay(16);
     }
     // if we moved at least a 1 px

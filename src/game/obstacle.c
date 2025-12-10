@@ -87,7 +87,8 @@ RenderObject* createTree(App* app, int32_t* heightmap, int32_t startPos,
 // checking for all obstacle collisions
 // and removing health
 // returns true if some obstacle was destroyed
-SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY) {
+SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY,
+                                 SDL_bool isEmulating) {
   for (uint32_t i = 0; i != MAXSTONES + MAXCLOUDS; ++i) {
     // skipping non existing objects or alredy destroyed objects
     if (obstacles[i].obstacleObject == NULL || obstacles[i].health == 0) {
@@ -98,12 +99,13 @@ SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY) {
 
     int obstacleY = obstacles[i].obstacleObject->data.texture.constRect.y;
     int obstacleH = obstacles[i].obstacleObject->data.texture.constRect.h;
+
     SDL_Rect obstacleRect = {
         .x = obstacleX, .y = obstacleY, .h = obstacleH, .w = obstacleW};
 
     if (i >= MAXSTONES) {
       if (SDL_PointInRect(&(SDL_Point){currX, currY}, &obstacleRect)) {
-        if (obstacles[i].health-- == 0) {
+        if (!isEmulating && --obstacles[i].health == 0) {
           // hiding destroyed objects
           obstacles[i].obstacleObject->disableRendering = SDL_TRUE;
         }
@@ -111,8 +113,8 @@ SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY) {
       }
     } else if (PointInRotatedRect(
                    &(obstacleRect), &(SDL_Point){currX, currY},
-                   obstacles[i].obstacleObject->data.texture.angle)) {
-      if (obstacles[i].health-- == 0) {
+                   360 - obstacles[i].obstacleObject->data.texture.angle)) {
+      if (!isEmulating && --obstacles[i].health == 0) {
         // hiding destroyed objects
         obstacles[i].obstacleObject->disableRendering = SDL_TRUE;
       }

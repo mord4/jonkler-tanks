@@ -17,7 +17,8 @@ RenderObject* createStone(App* app, int32_t* heightmap, int32_t startPos,
 RenderObject* createTree(App* app, int32_t* heightmap, int32_t startPos,
                          int32_t endPos, int32_t probability);
 
-SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY);
+SDL_bool checkObstacleCollisions(uint32_t currX, uint32_t currY,
+                                 SDL_bool isEmulating);
 
 extern obstacleStruct obstacles[MAXSTONES + MAXCLOUDS];
 #endif

@@ -267,7 +267,7 @@ void shoot(App* app, Player* firstPlayer, Player* secondPlayer,
     }
 
     // firsty checking the collision
-    if (checkObstacleCollisions(currX, currY)) {
+    if (checkObstacleCollisions(currX, currY, SDL_FALSE)) {
       explosion->data.texture.constRect.h = explosionRadius;
       explosion->data.texture.constRect.w = explosionRadius;
       explosion->data.texture.constRect.x =
