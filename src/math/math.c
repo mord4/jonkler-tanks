@@ -143,7 +143,7 @@ int32_t calcHitPosition(SDL_FPoint* initPos, double initVel, double angle,
     // hit at obstacles
     // res will be currXscaled_currYScaled
     if (checkObstacleCollisions(currX, currY, SDL_TRUE)) {
-      return INT_MAX;
+      return INT_MAX_VAL;
     }
 
     // successful hit

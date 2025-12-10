@@ -6,6 +6,7 @@
 #include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_ttf.h>
+#include <limits.h>
 #include <math.h>
 
 #include <log/log.h>
@@ -265,8 +266,9 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
                       double windStrength, SDL_Point* collisionP1,
                       SDL_Point* collisionP2, SDL_Point* collisionP3,
                       int32_t collisionP1R, int32_t collisionP2R,
-                      int32_t collisionP3R, enum shootingPrio shootingPrio) {
-  for (int angle = 0; angle <= 120; ++angle) {
+                      int32_t collisionP3R, enum shootingPrio shootingPrio,
+                      double velMult) {
+  for (int angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
     if (app->currPlayer == secondPlayer)
@@ -278,10 +280,10 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
     currAngle = 360 - normalizeAngle(currAngle);
 
     for (int power = 0; power <= maxPower; ++power) {
-      int32_t hitPos =
-          calcHitPosition(currPos, initVel, initGunAngle, heightMap, app,
-                          collisionP1, collisionP2, collisionP3, collisionP1R,
-                          collisionP2R, collisionP3R, projectile, windStrength);
+      int32_t hitPos = calcHitPosition(currPos, power * velMult, initGunAngle,
+                                       heightMap, app, collisionP1, collisionP2,
+                                       collisionP3, collisionP1R, collisionP2R,
+                                       collisionP3R, projectile, windStrength);
 
       // if weapon is broken the best option is to shoot obstacles near the enemy
       if (hitPos < -1 && shootingPrio != OBSTACLES) {
@@ -289,19 +291,20 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
                           recalcBulletPath);
+        SDL_Delay(200);
         shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
               regenMap);
         recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
         recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
         return 1;
       }
-
       // obstacle shoot
-      if (hitPos == INT_MAX && shootingPrio != TANK) {
+      if (hitPos == INT_MAX_VAL && shootingPrio != TANK) {
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
                           recalcBulletPath);
+        SDL_Delay(200);
         shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
               regenMap);
         recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
@@ -419,8 +422,8 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
   if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                  explosion, regenMap, recalcBulletPath, initGunAngle, maxPower,
                  &currPos, initVel, windStrength, &collisionP1, &collisionP2,
-                 &collisionP3, collisionP1R, collisionP2R, collisionP3R,
-                 idgf)) {
+                 &collisionP3, collisionP1R, collisionP2R, collisionP3R, idgf,
+                 velMultiplicator)) {
     return;
   }
 
@@ -436,7 +439,7 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
                      maxPower, &currPos, initVel, windStrength, &collisionP1,
                      &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, TANK)) {
+                     collisionP3R, idgf, velMultiplicator)) {
         return;
       }
     }
@@ -449,7 +452,35 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
                      maxPower, &currPos, initVel, windStrength, &collisionP1,
                      &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, OBSTACLES)) {
+                     collisionP3R, idgf, velMultiplicator)) {
+        return;
+      }
+    }
+  } else if (currShelterType == CLOUD) {
+    const int maxMovingAttempts = 1;
+    //
+    for (int i = 0; i < maxMovingAttempts; ++i) {
+      smoothMove(app, app->currPlayer == firstPlayer,
+                 app->currPlayer == secondPlayer, heightMap, obstacles);
+
+      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                     explosion, regenMap, recalcBulletPath, initGunAngle,
+                     maxPower, &currPos, initVel, windStrength, &collisionP1,
+                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+                     collisionP3R, idgf, velMultiplicator)) {
+        return;
+      }
+    }
+    // IF HE WAS NOT ABLE TO HIT ENEMY STRAIGHT -> GO BACK BEHIND THE ROCK
+    for (int i = 0; i < maxMovingAttempts; ++i) {
+      smoothMove(app, app->currPlayer == firstPlayer,
+                 app->currPlayer == firstPlayer, heightMap, obstacles);
+      // hitting obstacle from safer position
+      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                     explosion, regenMap, recalcBulletPath, initGunAngle,
+                     maxPower, &currPos, initVel, windStrength, &collisionP1,
+                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+                     collisionP3R, idgf, velMultiplicator)) {
         return;
       }
     }
