@@ -266,8 +266,9 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
                       double windStrength, SDL_Point* collisionP1,
                       SDL_Point* collisionP2, SDL_Point* collisionP3,
                       int32_t collisionP1R, int32_t collisionP2R,
-                      int32_t collisionP3R, enum shootingPrio shootingPrio) {
-  for (int angle = 0; angle <= 120; ++angle) {
+                      int32_t collisionP3R, enum shootingPrio shootingPrio,
+                      double velMult) {
+  for (int angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
     if (app->currPlayer == secondPlayer)
@@ -279,10 +280,10 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
     currAngle = 360 - normalizeAngle(currAngle);
 
     for (int power = 0; power <= maxPower; ++power) {
-      int32_t hitPos =
-          calcHitPosition(currPos, initVel, initGunAngle, heightMap, app,
-                          collisionP1, collisionP2, collisionP3, collisionP1R,
-                          collisionP2R, collisionP3R, projectile, windStrength);
+      int32_t hitPos = calcHitPosition(currPos, power * velMult, initGunAngle,
+                                       heightMap, app, collisionP1, collisionP2,
+                                       collisionP3, collisionP1R, collisionP2R,
+                                       collisionP3R, projectile, windStrength);
 
       // if weapon is broken the best option is to shoot obstacles near the enemy
       if (hitPos < -1 && shootingPrio != OBSTACLES) {
@@ -297,9 +298,8 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
         recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
         return 1;
       }
-
       // obstacle shoot
-      if (hitPos == INT_MAX && shootingPrio != TANK) {
+      if (hitPos == INT_MAX_VAL && shootingPrio != TANK) {
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
@@ -422,8 +422,8 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
   if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                  explosion, regenMap, recalcBulletPath, initGunAngle, maxPower,
                  &currPos, initVel, windStrength, &collisionP1, &collisionP2,
-                 &collisionP3, collisionP1R, collisionP2R, collisionP3R,
-                 idgf)) {
+                 &collisionP3, collisionP1R, collisionP2R, collisionP3R, idgf,
+                 velMultiplicator)) {
     return;
   }
 
@@ -439,7 +439,7 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
                      maxPower, &currPos, initVel, windStrength, &collisionP1,
                      &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, TANK)) {
+                     collisionP3R, idgf, velMultiplicator)) {
         return;
       }
     }
@@ -452,7 +452,7 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
                      maxPower, &currPos, initVel, windStrength, &collisionP1,
                      &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, OBSTACLES)) {
+                     collisionP3R, idgf, velMultiplicator)) {
         return;
       }
     }
@@ -467,7 +467,7 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
                      maxPower, &currPos, initVel, windStrength, &collisionP1,
                      &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, TANK)) {
+                     collisionP3R, idgf, velMultiplicator)) {
         return;
       }
     }
@@ -480,7 +480,7 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
                      maxPower, &currPos, initVel, windStrength, &collisionP1,
                      &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, OBSTACLES)) {
+                     collisionP3R, idgf, velMultiplicator)) {
         return;
       }
     }

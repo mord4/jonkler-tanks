@@ -4,6 +4,8 @@
 #include "../App.h"
 #include "../game/obstacle_struct.h"
 
+#define INT_MAX_VAL 2147483647
+
 #define DEGTORAD(x) ((x) * M_PI / 180.0)
 #define RADTODEG(x) ((x) * 180.0 / M_PI)
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
