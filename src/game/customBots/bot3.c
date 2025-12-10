@@ -198,6 +198,8 @@ void theGothGambit(
   double initGunAngle
 )
 {
+  if (!countCloudsRightNow()) tryFindShelter(app, heightMap, app->currPlayer == firstPlayer);
+
   Player* enemy = whoIsEnenmy(app->currPlayer, firstPlayer, secondPlayer);
 
   SDL_Point collisionP1, collisionP2, collisionP3;
@@ -239,8 +241,6 @@ void theGothGambit(
     app->currWeapon, projectile,
     &velMultiplicator, &explosionRadius, &isHittableNearby, &maxPower
   );
-
-  if (!countCloudsRightNow()) tryFindShelter(app, heightMap, app->currPlayer == firstPlayer);
 
   for (int32_t angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
