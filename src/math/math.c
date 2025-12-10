@@ -121,8 +121,6 @@ int32_t calcHitPosition(SDL_FPoint* initPos, double initVel, double angle,
 
     projectile->data.texture.angle = 360 - atan2(dy, dx) * 180.0 / M_PI;
 
-    // currX = initPos->x + vx * currTime;
-    // currY = initPos->y - (vy * currTime - 0.5 * G * currTime * currTime);
     currX = initPos->x + relativePos.x;
     currY = initPos->y - relativePos.y;
 
