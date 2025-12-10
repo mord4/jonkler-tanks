@@ -6,6 +6,7 @@
 #include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_ttf.h>
+#include <limits.h>
 #include <math.h>
 
 #include <log/log.h>
@@ -289,6 +290,7 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
                           recalcBulletPath);
+        SDL_Delay(200);
         shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
               regenMap);
         recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
@@ -302,6 +304,7 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
                           recalcBulletPath);
+        SDL_Delay(200);
         shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
               regenMap);
         recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
@@ -427,6 +430,34 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
   // that means we can move backwards(forwards) on right(left) tank
   if (currShelterType == STONE) {
     const int maxMovingAttempts = 2;
+    //
+    for (int i = 0; i < maxMovingAttempts; ++i) {
+      smoothMove(app, app->currPlayer == firstPlayer,
+                 app->currPlayer == secondPlayer, heightMap, obstacles);
+
+      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                     explosion, regenMap, recalcBulletPath, initGunAngle,
+                     maxPower, &currPos, initVel, windStrength, &collisionP1,
+                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+                     collisionP3R, TANK)) {
+        return;
+      }
+    }
+    // IF HE WAS NOT ABLE TO HIT ENEMY STRAIGHT -> GO BACK BEHIND THE ROCK
+    for (int i = 0; i < maxMovingAttempts; ++i) {
+      smoothMove(app, app->currPlayer == firstPlayer,
+                 app->currPlayer == firstPlayer, heightMap, obstacles);
+      // hitting obstacle from safer position
+      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
+                     explosion, regenMap, recalcBulletPath, initGunAngle,
+                     maxPower, &currPos, initVel, windStrength, &collisionP1,
+                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
+                     collisionP3R, OBSTACLES)) {
+        return;
+      }
+    }
+  } else if (currShelterType == CLOUD) {
+    const int maxMovingAttempts = 1;
     //
     for (int i = 0; i < maxMovingAttempts; ++i) {
       smoothMove(app, app->currPlayer == firstPlayer,
