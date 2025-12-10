@@ -17,46 +17,6 @@
 #include "../player_movement.h"
 #include "../specialConditions/wind.h"
 
-static void setWeaponStats(int32_t currWeapon, RenderObject* projectile,
-                           double* velMultiplicator, int32_t* explosionRadius,
-                           SDL_bool* isHittableNearby, int32_t* maxPower) {
-  switch (currWeapon) {
-    // small bullet
-    case 0:
-      *velMultiplicator = 2;
-      *explosionRadius = projectile->data.texture.constRect.w;
-      *isHittableNearby = SDL_FALSE;
-      *maxPower = 50;
-      break;
-    // BIG BULLET
-    case 1:
-      *velMultiplicator = 1.75;
-      *explosionRadius = projectile->data.texture.constRect.w;
-      *isHittableNearby = SDL_FALSE;
-      *maxPower = 50;
-      break;
-    // small boom
-    case 2:
-      *velMultiplicator = 1.25;
-      *explosionRadius = projectile->data.texture.constRect.w * 2;
-      *isHittableNearby = SDL_TRUE;
-      *maxPower = 75;
-      break;
-    // BIG BOOM
-    case 3:
-      *velMultiplicator = 1.0;
-      *explosionRadius = projectile->data.texture.constRect.w * 4;
-      *isHittableNearby = SDL_TRUE;
-      *maxPower = 99;
-      break;
-    default:
-      *velMultiplicator = 1.0;
-      *explosionRadius = projectile->data.texture.constRect.w;
-      *isHittableNearby = SDL_FALSE;
-      break;
-  }
-}
-
 // returning X coordinate of the nearest stone
 // or -1 if stone wasnt found
 static SDL_Point findNearestStone(SDL_bool commingFromLeft) {
@@ -262,13 +222,30 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
                       int32_t* heightMap, RenderObject* projectile,
                       RenderObject* explosion, SDL_bool* regenMap,
                       SDL_bool* recalcBulletPath, double initGunAngle,
-                      int32_t maxPower, SDL_FPoint* currPos, double initVel,
-                      double windStrength, SDL_Point* collisionP1,
-                      SDL_Point* collisionP2, SDL_Point* collisionP3,
-                      int32_t collisionP1R, int32_t collisionP2R,
-                      int32_t collisionP3R, enum shootingPrio shootingPrio,
-                      double velMult) {
-  for (int angle = 120; angle >= 0; --angle) {
+                      int32_t maxPower, double windStrength,
+                      SDL_Point* collisionP1, SDL_Point* collisionP2,
+                      SDL_Point* collisionP3, int32_t collisionP1R,
+                      int32_t collisionP2R, int32_t collisionP3R,
+                      enum shootingPrio shootingPrio, double velMult) {
+  SDL_Point initPos = getPixelScreenPosition(
+      (SDL_Point){app->currPlayer->tankObj->data.texture.scaleRect.x,
+                  app->currPlayer->tankObj->data.texture.scaleRect.y},
+      (SDL_Point){5 * app->scalingFactorX, 27 * app->scalingFactorY},
+      app->currPlayer->tankObj->data.texture.angle,
+      (SDL_Point){24 * app->scalingFactorX, 7 * app->scalingFactorY});
+
+  initPos.x /= app->scalingFactorX;
+  initPos.y /= app->scalingFactorY;
+
+  initPos.x += 25 * cos(DEGTORAD(initGunAngle));
+  initPos.y -= 25 * sin(DEGTORAD(initGunAngle));
+
+  SDL_FPoint currPos = {
+      .x = (float)initPos.x,
+      .y = (float)initPos.y,
+  };
+
+  for (int angle = 0; angle <= 120; ++angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
     if (app->currPlayer == secondPlayer)
@@ -279,14 +256,14 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
     currAngle = round(currAngle);
     currAngle = 360 - normalizeAngle(currAngle);
 
-    for (int power = 0; power <= maxPower; ++power) {
-      int32_t hitPos = calcHitPosition(currPos, power * velMult, initGunAngle,
+    for (int power = maxPower; power >= 0; --power) {
+      int32_t hitPos = calcHitPosition(&currPos, power * velMult, initGunAngle,
                                        heightMap, app, collisionP1, collisionP2,
                                        collisionP3, collisionP1R, collisionP2R,
                                        collisionP3R, projectile, windStrength);
-
+      log_fatal("%d %lf %lf", power, power * velMult, currAngle);
       // if weapon is broken the best option is to shoot obstacles near the enemy
-      if (hitPos < -1 && shootingPrio != OBSTACLES) {
+      if (hitPos < -1) {
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
@@ -382,33 +359,46 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
     collisionP3R = 9 * MAX(app->scalingFactorX, app->scalingFactorY);
   }
 
-  // bullet initial position
-  SDL_Point initPos = getPixelScreenPosition(
-      (SDL_Point){app->currPlayer->tankObj->data.texture.scaleRect.x,
-                  app->currPlayer->tankObj->data.texture.scaleRect.y},
-      (SDL_Point){5 * app->scalingFactorX, 27 * app->scalingFactorY},
-      app->currPlayer->tankObj->data.texture.angle,
-      (SDL_Point){24 * app->scalingFactorX, 7 * app->scalingFactorY});
-
-  initPos.x /= app->scalingFactorX;
-  initPos.y /= app->scalingFactorY;
-
-  initPos.x += 25 * cos(DEGTORAD(initGunAngle));
-  initPos.y -= 25 * sin(DEGTORAD(initGunAngle));
-
-  SDL_FPoint currPos = {
-      .x = (float)initPos.x,
-      .y = (float)initPos.y,
-  };
-
   double velMultiplicator;
   int32_t explosionRadius;
   SDL_bool isHittableNearby;
   int32_t maxPower;
-  setWeaponStats(app->currWeapon, projectile, &velMultiplicator,
-                 &explosionRadius, &isHittableNearby, &maxPower);
-
-  int32_t initVel = app->currPlayer->firingPower * velMultiplicator;
+  switch (app->currWeapon) {
+    // small bullet
+    case 0:
+      velMultiplicator = 2;
+      explosionRadius = projectile->data.texture.constRect.w;
+      isHittableNearby = SDL_FALSE;
+      maxPower = 50;
+      break;
+    // BIG BULLET
+    case 1:
+      velMultiplicator = 1.75;
+      explosionRadius = projectile->data.texture.constRect.w;
+      isHittableNearby = SDL_FALSE;
+      maxPower = 50;
+      break;
+    // small boom
+    case 2:
+      velMultiplicator = 1.25;
+      explosionRadius = projectile->data.texture.constRect.w * 2;
+      isHittableNearby = SDL_TRUE;
+      maxPower = 75;
+      break;
+    // BIG BOOM
+    case 3:
+      velMultiplicator = 1.0;
+      explosionRadius = projectile->data.texture.constRect.w * 4;
+      isHittableNearby = SDL_TRUE;
+      maxPower = 99;
+      break;
+    default:
+      velMultiplicator = 1.0;
+      explosionRadius = projectile->data.texture.constRect.w;
+      isHittableNearby = SDL_FALSE;
+      maxPower = 99;
+      break;
+  }
 
   // getting current wind speed
   int32_t windStrengthMin, windStrengthMax;
@@ -421,8 +411,8 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
 
   if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                  explosion, regenMap, recalcBulletPath, initGunAngle, maxPower,
-                 &currPos, initVel, windStrength, &collisionP1, &collisionP2,
-                 &collisionP3, collisionP1R, collisionP2R, collisionP3R, idgf,
+                 windStrength, &collisionP1, &collisionP2, &collisionP3,
+                 collisionP1R, collisionP2R, collisionP3R, idgf,
                  velMultiplicator)) {
     return;
   }
@@ -437,9 +427,9 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
 
       if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
-                     maxPower, &currPos, initVel, windStrength, &collisionP1,
-                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, idgf, velMultiplicator)) {
+                     maxPower, windStrength, &collisionP1, &collisionP2,
+                     &collisionP3, collisionP1R, collisionP2R, collisionP3R,
+                     TANK, velMultiplicator)) {
         return;
       }
     }
@@ -450,9 +440,9 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
       // hitting obstacle from safer position
       if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
-                     maxPower, &currPos, initVel, windStrength, &collisionP1,
-                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, idgf, velMultiplicator)) {
+                     maxPower, windStrength, &collisionP1, &collisionP2,
+                     &collisionP3, collisionP1R, collisionP2R, collisionP3R,
+                     OBSTACLES, velMultiplicator)) {
         return;
       }
     }
@@ -465,9 +455,9 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
 
       if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
-                     maxPower, &currPos, initVel, windStrength, &collisionP1,
-                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, idgf, velMultiplicator)) {
+                     maxPower, windStrength, &collisionP1, &collisionP2,
+                     &collisionP3, collisionP1R, collisionP2R, collisionP3R,
+                     TANK, velMultiplicator)) {
         return;
       }
     }
@@ -478,9 +468,9 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
       // hitting obstacle from safer position
       if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
                      explosion, regenMap, recalcBulletPath, initGunAngle,
-                     maxPower, &currPos, initVel, windStrength, &collisionP1,
-                     &collisionP2, &collisionP3, collisionP1R, collisionP2R,
-                     collisionP3R, idgf, velMultiplicator)) {
+                     maxPower, windStrength, &collisionP1, &collisionP2,
+                     &collisionP3, collisionP1R, collisionP2R, collisionP3R,
+                     OBSTACLES, velMultiplicator)) {
         return;
       }
     }
