@@ -259,6 +259,19 @@ static void playMainLoop(App* app, struct playMainObjects* objs) {
       objs->arrow->data.texture.constRect.x =
           objs->Player1Tank->data.texture.constRect.x - 15;
       objs->arrow->data.texture.flipFlag = SDL_FLIP_NONE;
+      if (app->wasHitten) {
+        objs->emoji->data.texture.constRect.y =
+            objs->Player2Tank->data.texture.constRect.y -
+            objs->Player2Tank->data.texture.constRect.w *
+                fabs(sin(DEGTORAD(objs->Player2Tank->data.texture.angle))) -
+            80;
+        objs->emoji->data.texture.constRect.x =
+            objs->Player2Tank->data.texture.constRect.x - 30;
+        objs->emoji->data.texture.flipFlag = SDL_FLIP_HORIZONTAL;
+      } else {
+        objs->emoji->data.texture.constRect.y = 100000;
+        objs->emoji->data.texture.constRect.x = 100000;
+      }
     } else {
       objs->currentPlayerInfo->data.texture.constRect.x =
           app->screenWidth / app->scalingFactorX -
@@ -272,6 +285,19 @@ static void playMainLoop(App* app, struct playMainObjects* objs) {
       objs->arrow->data.texture.constRect.x =
           objs->Player2Tank->data.texture.constRect.x;
       objs->arrow->data.texture.flipFlag = SDL_FLIP_HORIZONTAL;
+      if (app->wasHitten) {
+        objs->emoji->data.texture.constRect.y =
+            objs->Player1Tank->data.texture.constRect.y -
+            objs->Player1Tank->data.texture.constRect.w *
+                fabs(sin(DEGTORAD(objs->Player1Tank->data.texture.angle))) -
+            80;
+        objs->emoji->data.texture.constRect.x =
+            objs->Player1Tank->data.texture.constRect.x - 45;
+        objs->emoji->data.texture.flipFlag = SDL_FLIP_NONE;
+      } else {
+        objs->emoji->data.texture.constRect.y = 100000;
+        objs->emoji->data.texture.constRect.x = 100000;
+      }
     }
   }
 
@@ -517,8 +543,7 @@ static void playMain(App* app, uint32_t SEED) {
         &(SDL_Point){12, 30}, 39, 2, SDL_FALSE);
     objs->emoji = createRenderObject(app->renderer, GIF, 1, b_NONE,
                                      "media/imgs/cl_goblin.png",
-                                     &(SDL_Point){0, 0}, 32, 5, SDL_TRUE);
-    objs->emoji->disableRendering = SDL_TRUE;
+                                     &(SDL_Point){0, 0}, 32, 5, SDL_FALSE);
     objs->jonklerAvatar =
         createRenderObject(app->renderer, TEXTURE, 1, b_NONE,
                            "media/imgs/jonkler.png", &(SDL_Point){0, 30});
