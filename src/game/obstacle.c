@@ -13,8 +13,8 @@
 #include "obstacle_struct.h"
 
 obstacleStruct obstacles[MAXSTONES + MAXCLOUDS];
-
-// the freak was fall func name??
+SDL_Point center = {0, 0};
+    // the freak was fall func name??
 static RenderObject* renderStoneWithAngle(App* app, int32_t* heightmap,
                                           int32_t x) {
   SDL_Point pos = {x, -66 + app->screenHeight / app->scalingFactorY -
@@ -25,7 +25,7 @@ static RenderObject* renderStoneWithAngle(App* app, int32_t* heightmap,
 
   RenderObject* object = createRenderObject(
       app->renderer, TEXTURE | EXTENDED, 0, b_NONE, "media/imgs/rock.png", &pos,
-      360 - angle, SDL_FLIP_NONE, &(SDL_Point){0, 0});
+      360 - angle, SDL_FLIP_NONE, &center);
   return object;
 }
 
