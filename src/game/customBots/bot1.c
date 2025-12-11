@@ -245,10 +245,7 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
       .y = (float)initPos.y,
   };
 
-  int32_t currAngleSkip = 0;
-  const int32_t maxAngleSkip = 5;
-
-  for (int angle = 120; angle >= 0; --angle) {
+  for (int32_t angle = 120; angle >= 0; --angle) {
     double currAngle = app->currPlayer->tankGunObj->data.texture.angle;
 
     if (app->currPlayer == secondPlayer)
@@ -259,31 +256,13 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
     currAngle = round(currAngle);
     currAngle = 360 - normalizeAngle(currAngle);
 
-    for (int power = maxPower; power >= 0; --power) {
+    for (int32_t power = 0; power <= maxPower; ++power) {
       int32_t hitPos =
           calcHitPosition(&currPos, power * velMult, currAngle, heightMap, app,
                           collisionP1, collisionP2, collisionP3, collisionP1R,
                           collisionP2R, collisionP3R, projectile, windStrength);
       // collision hit
       if (hitPos < -1) {
-        if (++currAngleSkip % maxAngleSkip != 0) {
-          break;
-        }
-        smoothChangeAngle(app->currPlayer, angle, &app->currState,
-                          recalcBulletPath);
-        smoothChangePower(app->currPlayer, power, &app->currState,
-                          recalcBulletPath);
-        SDL_Delay(200);
-        shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
-              regenMap);
-        recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
-        recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
-        return 1;
-      }
-      if (hitPos == INT_MAX_VAL && shootingPrio != TANK) {
-        if (++currAngleSkip % maxAngleSkip != 0) {
-          break;
-        }
         smoothChangeAngle(app->currPlayer, angle, &app->currState,
                           recalcBulletPath);
         smoothChangePower(app->currPlayer, power, &app->currState,
@@ -297,13 +276,22 @@ static int decideLoop(App* app, Player* firstPlayer, Player* secondPlayer,
       }
     }
   }
+  // smoothChangeAngle(app->currPlayer, app->currPlayer->gunAngle, &app->currState,
+  //                   recalcBulletPath);
+  // smoothChangePower(app->currPlayer, app->currPlayer->firingPower,
+  //                   &app->currState, recalcBulletPath);
+  // SDL_Delay(200);
+  // shoot(app, firstPlayer, secondPlayer, projectile, explosion, heightMap,
+  //       regenMap);
+  // recalcPlayerPos(app, firstPlayer, heightMap, 0, 5);
+  // recalcPlayerPos(app, secondPlayer, heightMap, 0, 8);
   return 0;
 }
 
-void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
-              int32_t* heightMap, RenderObject* projectile,
-              RenderObject* explosion, SDL_bool* regenMap,
-              SDL_bool* recalcBulletPath, double initGunAngle) {
+int bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
+             int32_t* heightMap, RenderObject* projectile,
+             RenderObject* explosion, SDL_bool* regenMap,
+             SDL_bool* recalcBulletPath, double initGunAngle) {
   Player* enemy;
   if (app->currPlayer == firstPlayer) {
     enemy = secondPlayer;
@@ -421,14 +409,15 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                  windStrength, &collisionP1, &collisionP2, &collisionP3,
                  collisionP1R, collisionP2R, collisionP3R, TANK,
                  velMultiplicator)) {
-    return;
+    return 1;
   }
 
   // that means we can move backwards(forwards) on right(left) tank
   if (currShelterType == STONE) {
     const int maxMovingAttempts = 2;
     //
-    for (int i = 0; i < maxMovingAttempts; ++i) {
+    for (int i = 0; i < maxMovingAttempts && app->currPlayer->movesLeft >= 1;
+         ++i) {
       smoothMove(app, app->currPlayer == firstPlayer,
                  app->currPlayer == secondPlayer, heightMap, obstacles);
 
@@ -437,11 +426,12 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      maxPower, windStrength, &collisionP1, &collisionP2,
                      &collisionP3, collisionP1R, collisionP2R, collisionP3R,
                      TANK, velMultiplicator)) {
-        return;
+        return 1;
       }
     }
     // IF HE WAS NOT ABLE TO HIT ENEMY STRAIGHT -> GO BACK BEHIND THE ROCK
-    for (int i = 0; i < maxMovingAttempts; ++i) {
+    for (int i = 0; i < maxMovingAttempts && app->currPlayer->movesLeft >= 1;
+         ++i) {
       smoothMove(app, app->currPlayer == firstPlayer,
                  app->currPlayer == firstPlayer, heightMap, obstacles);
       // hitting obstacle from safer position
@@ -450,36 +440,10 @@ void bot1Main(App* app, Player* firstPlayer, Player* secondPlayer,
                      maxPower, windStrength, &collisionP1, &collisionP2,
                      &collisionP3, collisionP1R, collisionP2R, collisionP3R,
                      OBSTACLES, velMultiplicator)) {
-        return;
-      }
-    }
-  } else if (currShelterType == CLOUD) {
-    const int maxMovingAttempts = 1;
-    //
-    for (int i = 0; i < maxMovingAttempts; ++i) {
-      smoothMove(app, app->currPlayer == firstPlayer,
-                 app->currPlayer == secondPlayer, heightMap, obstacles);
-
-      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
-                     explosion, regenMap, recalcBulletPath, initGunAngle,
-                     maxPower, windStrength, &collisionP1, &collisionP2,
-                     &collisionP3, collisionP1R, collisionP2R, collisionP3R,
-                     TANK, velMultiplicator)) {
-        return;
-      }
-    }
-    // IF HE WAS NOT ABLE TO HIT ENEMY STRAIGHT -> GO BACK BEHIND THE ROCK
-    for (int i = 0; i < maxMovingAttempts; ++i) {
-      smoothMove(app, app->currPlayer == firstPlayer,
-                 app->currPlayer == firstPlayer, heightMap, obstacles);
-      // hitting obstacle from safer position
-      if (decideLoop(app, firstPlayer, secondPlayer, heightMap, projectile,
-                     explosion, regenMap, recalcBulletPath, initGunAngle,
-                     maxPower, windStrength, &collisionP1, &collisionP2,
-                     &collisionP3, collisionP1R, collisionP2R, collisionP3R,
-                     OBSTACLES, velMultiplicator)) {
-        return;
+        return 1;
       }
     }
   }
+
+  return 0;
 }

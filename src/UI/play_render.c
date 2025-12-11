@@ -569,7 +569,7 @@ static void playMain(App* app, uint32_t SEED) {
     // setting up the 'default' settings
     if (!wasLoaded) {
       log_info("using default settings for players!");
-      objs->firstPlayer.movesLeft = 30;
+      objs->firstPlayer.movesLeft = 99;
       objs->firstPlayer.health = 100;
       objs->firstPlayer.gunAngle = 0.0;
       objs->firstPlayer.firingPower = 30;
@@ -593,7 +593,7 @@ static void playMain(App* app, uint32_t SEED) {
         default:
           break;
       }
-      objs->secondPlayer.movesLeft = 30;
+      objs->secondPlayer.movesLeft = 99;
       objs->secondPlayer.health = 100;
       objs->secondPlayer.gunAngle = 0.0;
       objs->secondPlayer.firingPower = 30;
@@ -651,16 +651,16 @@ static void playMain(App* app, uint32_t SEED) {
     objs->tree5 = createTree(app, objs->heightMap, 850, 950, 10);
     uint32_t currCnt = 0;
     // creating clouds
-    objs->cloud1 = createCloud(app, objs->heightMap, 150, 200, 10, currCnt++);
-    objs->cloud2 = createCloud(app, objs->heightMap, 200, 350, 10, currCnt++);
-    objs->cloud3 = createCloud(app, objs->heightMap, 350, 500, 10, currCnt++);
-    objs->cloud4 = createCloud(app, objs->heightMap, 500, 650, 10, currCnt++);
-    objs->cloud5 = createCloud(app, objs->heightMap, 650, 800, 10, currCnt++);
-    objs->cloud6 = createCloud(app, objs->heightMap, 200, 350, 10, currCnt++);
-    objs->cloud7 = createCloud(app, objs->heightMap, 650, 800, 10, currCnt++);
-    objs->cloud8 = createCloud(app, objs->heightMap, 250, 600, 0, currCnt++);
-    objs->cloud9 = createCloud(app, objs->heightMap, 250, 600, 0, currCnt++);
-    objs->cloud10 = createCloud(app, objs->heightMap, 250, 600, 0, currCnt++);
+    objs->cloud1 = createCloud(app, objs->heightMap, 50, 500, 0, currCnt++);
+    objs->cloud2 = createCloud(app, objs->heightMap, 50, 500, 0, currCnt++);
+    objs->cloud3 = createCloud(app, objs->heightMap, 50, 500, 0, currCnt++);
+    objs->cloud4 = createCloud(app, objs->heightMap, 50, 500, 0, currCnt++);
+    objs->cloud5 = createCloud(app, objs->heightMap, 50, 500, 0, currCnt++);
+    objs->cloud6 = createCloud(app, objs->heightMap, 600, 930, 0, currCnt++);
+    objs->cloud7 = createCloud(app, objs->heightMap, 600, 930, 0, currCnt++);
+    objs->cloud8 = createCloud(app, objs->heightMap, 600, 930, 0, currCnt++);
+    objs->cloud9 = createCloud(app, objs->heightMap, 600, 930, 0, currCnt++);
+    objs->cloud10 = createCloud(app, objs->heightMap, 600, 930, 0, currCnt++);
 
     currCnt = 0;
     // creating stones
